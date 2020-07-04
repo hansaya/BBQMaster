@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html charset="UTF-8">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <link rel="stylesheet" href="/css/custom.css">
+    <link href="/css/bootstrap.min.css" rel="stylesheet" title="main">
+    <link rel="stylesheet" href="/css/cover.css">
+    <!-- <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/superhero/bootstrap.min.css" rel="stylesheet" title="main"> -->
+    <!-- <script src="//cdn.rawgit.com/Mikhus/canvas-gauges/gh-pages/download/2.1.5/all/gauge.min.js"></script> -->
+    <title>BBQ Master</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+  </head>
+
+  <body>
+    <div class="container d-flex h-100 p-3 mx-auto flex-column">
+
+      <header class="masthead">
+        <div class="inner">
+          <h3 class="masthead-brand">BBQ Master</h3>
+          <nav class="nav nav-masthead justify-content-center navbar-expand-lg tabs" id="tab">
+            <a class="nav-link active" href="#tab_mesures" data-toggle="tab">Home</a>
+            <a class="nav-link" href="#tab_configuration" data-toggle="tab">Settings</a>
+          </nav>
+        </div>
+      </header>
+
+      <main role="main" class="container">
+        <!-- <div class="row">
+          <div class="col-md-4">
+            <h1>BBQ Master</h1>
+          </div>
+          <div class="col-md-4 pull-right" id="wrapper">
+          	<div class="battery2 showcharging"></div>
+          </div>
+        </div> -->
+        <!-- <div class="row"> -->
+          <!-- <ul class="nav nav-tabs" id="tab">
+            <li class="active"><a href="#tab_mesures" data-toggle="tab">Dashboard</a></li>
+            <li><a href="#tab_configuration" data-toggle="tab">Configuration</a></li>
+          </ul> -->
+          <div class="content position-relative">
+            <div class="tab-pane fade in active show" id="tab_mesures">
+              <!-- <h2>Smoker Controller</h2> -->
+              <!-- <div class="alert alert-danger" role="alert" style="display:none;">
+                <strong>Oh snap!</strong> Running out of wood!
+              </div> -->
+              <div class="row bg-dark rounded p-3 p-md-5 m-md-3 text-center">
+                <ul class="nav nav-pills">
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="batvoltage">-</div>Battery Voltage</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor0">-</div>Sen 1</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor1">-</div>Sen 2</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor2">-</div>Sen 3</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor3">-</div>Sen 4</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor4">-</div>Sen 5</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor5">-</div>Sen 6</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor6">-</div>Sen 7</a></li>
+                  <li><a href="#">
+                      <div class="span badge pull-right" id="sensor7">-</div>Sen 8</a></li>
+                </ul>
+              </div>
+
+              <!-- <div class="row "> -->
+                <div class="chart-wrap text-center rounded p-3 p-md-5 m-md-3">
+                  <!-- <div class="chart-title">
+                    BBQ Tempurature
+                  </div> -->
+                  <div id="dashboard-stats" class="chart bars-horizontal brand-primary">
+                    <div class="row" id="sensorBar0">
+                      <span class="label">Interest 1</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="62"></div>
+                      </div>
+                      <span class="number">62</span>
+                    </div>
+                    <div class="row" id="sensorBar1">
+                      <span class="label">Interest 2</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="35"></div>
+                      </div>
+                      <span class="number">35</span>
+                    </div>
+                    <div class="row" id="sensorBar2">
+                      <span class="label">Interest 3</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="18"></div>
+                      </div>
+                      <span class="number">18</span>
+                    </div>
+                    <div class="row" id="sensorBar3">
+                      <span class="label">Interest 4</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="13"></div>
+                      </div>
+                      <span class="number">13</span>
+                    </div>
+                    <div class="row" id="sensorBar4">
+                      <span class="label">Interest 5</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="8"></div>
+                      </div>
+                      <span class="number">8</span>
+                    </div>
+                    <div class="row" id="sensorBar5">
+                      <span class="label">Interest 6</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="5"></div>
+                      </div>
+                      <span class="number">5</span>
+                    </div>
+                    <div class="row" id="sensorBar6">
+                      <span class="label">Interest 7</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="2"></div>
+                      </div>
+                      <span class="number">2</span>
+                    </div>
+                    <div class="row" id="sensorBar7">
+                      <span class="label">Interest 8</span>
+                      <div class="bar-wrap">
+                        <div class="bar" data-value="9"></div>
+                      </div>
+                      <span class="number">9</span>
+                    </div>
+                  </div>
+                </div>
+              <!-- </div> -->
+
+              <div class="row col-xs-12">
+                <!-- style="display: block; width: 701px; height: 350px;" -->
+                <canvas id="myChart" class="chartjs-render-monitor" ></canvas>
+              </div>
+            </div>
+
+            <div class="tab-pane fade" id="tab_configuration">
+              <h2>Configuration        </h2>
+              <div class="btn-group">
+                <button class="btn btn-default" id="labelTheme">Theme</button>
+                <button class="btn btn-default dropdown-toggle" data-toggle="dropdown"><span class="caret"></span></button>
+                <ul class="dropdown-menu">
+                  <li><a class="change-style-menu-item" href="#" rel="bootstrap">Boostrap</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="cerulean">Cerulean</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="cosmo">Cosmo</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="cyborg">Cyborg</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="darkly">Darkly</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="flatly">Flatly</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="journal">Journal</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="lumen">Lumen</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="paper">Paper</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="readable">Readable</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="sandstone">Sandstone</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="simplex">Simplex</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="slate">Slate</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="spacelab">Spacelab</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="superhero">Superhero</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="united">United</a></li>
+                  <li><a class="change-style-menu-item" href="#" rel="yeti">Yeti  </a></li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        <!-- </div> -->
+      </main>
+      <footer class="page-footer font-small">
+        <div class="col-xs-2 col-md-2"><img src="/img/logo.png" width="30" height="30"></div>
+        <div class="col-xs-5 col-md-5">
+          <p><a href="https://github.com/hansaya/BBQ_MASTER">Github</a></p>
+        </div>
+        <div class="col-xs-5 col-md-5">
+        </div>
+      </footer>
+    </div>
+
+    <!-- Placed at the end of the document so the pages load faster -->
+    <script src="/js/jquery.min.js"></script>
+    <script src="/js/popper.min.js"></script>
+    <script src="/js/bootstrap.min.js"></script>
+    <script src="/js/moment.min.js"></script>
+    <script src="/js/Chart.min.js"></script>
+
+    <script>
+      var Timer_UdpateMesures;
+      var tab_pane = '#tab_mesures';
+      var tabRefresh = false;
+
+      //New front page grapgh
+      var canvas = document.getElementById('myChart'),
+      ctx = canvas.getContext('2d'),
+      startingData = {
+        labels: [],
+        datasets: []
+      };
+      // Reduce the animation steps for demo clarity.
+      var liveChart = new Chart(ctx, {
+             type: "line",
+             data: startingData,
+             animationSteps: 15,
+             borderColor: 'rgba(244, 245, 244, 0.1)',
+             options: {
+                title: {
+                	text: 'Temp Scale'
+                },
+                scales: {
+                	xAxes: [{
+                		type: 'time',
+                    time: {
+                        displayFormats: {
+                            quarter: 'h:mm:ss a'
+                        }
+                    },
+                    distribution: 'linear',
+                		scaleLabel: {
+                			display: true,
+                			labelString: 'Date'
+                		},
+                    ticks: {
+                      fontColor : "#F4F5F4"
+                    }
+                	}],
+                	yAxes: [{
+                		scaleLabel: {
+                			display: true,
+                			labelString: 'Fahrenheit'
+                		},
+                    ticks: {
+                      fontColor : "#F4F5F4"
+                    }
+                	}]
+                },
+            }
+      });
+
+      function addGraphData(chart, name, newEntry) {
+
+          var foundSen = false;
+          chart.data.datasets.forEach((dataset) => {
+              if (dataset.label == name)
+              {
+                dataset.data.push(newEntry);
+                foundSen = true;
+                return false;
+              }
+          });
+
+          if (!foundSen)
+          {
+            var colorR = Math.floor((Math.random() * 256));
+            var colorG = Math.floor((Math.random() * 256));
+            var colorB = Math.floor((Math.random() * 256));
+
+            chart.data.datasets.push ({
+                fill: false,
+                label: name,
+                backgroundColor: "rgba("+colorR+","+colorG+","+colorB+",1.00)",
+                borderColor: "rgba("+colorR+","+colorG+","+colorB+",1.00)",
+                data: []
+            });
+            chart.data.datasets[chart.data.datasets.length - 1].data.push(newEntry);
+          }
+          chart.update();
+      }
+
+      // Update the history at start
+      updateTheHistory ();
+
+      // Update the grapgh at start
+      updateBarGrapgh ();
+
+      setInterval(updateBarGrapgh, 5000); //60000 MS == 1 minutes
+
+      function updateTheHistory ()
+      {
+        console.log("Getting history!");
+        $.getJSON('/history.json', function(json){
+
+          // Data line chart
+          for ( var i = 0; i < json.hist.length; i++ ) {
+            // Update the time label
+            liveChart.data.labels.push(new Date(json.hist[i].t * 1000));
+
+            for ( var j = 0; j < json.hist[i].sensors.length; j++ ) {
+              // Update the grapgh the new data
+              addGraphData (liveChart, json.hist[i].sensors[j].n, {t: new Date(json.hist[i].t * 1000), y: json.hist[i].sensors[j].v});
+            }
+          }
+
+        }).fail(function(err){
+          console.log("err getJSON history.json "+JSON.stringify(err));
+        });
+      }
+
+      function updateBarGrapgh ()
+      {
+        if (tab_pane=='#tab_mesures')
+        {
+          // console.log("Updating the gauge");
+          $.getJSON('/measures.json', function(data){
+            // Update the time label
+            liveChart.data.labels.push(new Date(data.t * 1000));
+
+            for ( var i = 0; i < data.sensors.length; i++ ) {
+              if (data.sensors[i].i == 1)
+              {
+                $('#sensor'+ i).html("<b>" + data.sensors[i].v + "&#176F </b>");
+                document.getElementById('sensorBar' + i).getElementsByClassName('bar-wrap')[0].getElementsByClassName('bar')[0].setAttribute ('data-value', data.sensors[i].v);
+                document.getElementById('sensorBar' + i).getElementsByClassName('number')[0].innerText = data.sensors[i].v;
+
+                // Update the grapgh the new data
+                addGraphData (liveChart, data.sensors[i].n, {t: new Date(data.t * 1000), y: data.sensors[i].v});
+
+                if (document.getElementById('sensorBar' + i).style.display == "none")
+                {
+                  document.getElementById('sensorBar' + i).style.display = "block";
+                }
+              }
+              else
+              {
+                $('#sensor'+ i).html("<b> N/A </b>");
+                // Hide the bar element if value is invalid
+                document.getElementById('sensorBar' + i).style.display = "none";
+              }
+              $('#batvoltage').html("<b>" + data.bat + "v </b>");
+
+              // TempValues.push(data.sensors[i].v);
+              document.getElementById('sensorBar' + i).getElementsByClassName('label')[0].innerText = data.sensors[i].n;
+            }
+
+            // Update the Fancy grapgh
+            generateBarGraph('#dashboard-stats');
+          }).fail(function(err){
+            console.log("err getJSON measures.json "+JSON.stringify(err));
+          });
+        }
+      }
+
+      function generateBarGraph(wrapper) {
+        // Set Up Values Array
+        var values = [];
+
+        // Get Values and save to Array
+        $(wrapper + ' .bar').each(function(index, el) {
+          if ($(this).closest(".row").is(":visible"))
+          {
+            values.push($(this).attr('data-value'));
+          }
+        });
+
+        // Get Max Value From Array
+        var max_value = Math.max.apply(Math, values)+10;
+        console.log ('Max value ' + max_value);
+        // Set width of bar to percent of max value
+        $(wrapper + ' .bar').each(function(index, el) {
+          var bar = $(this),
+              value = bar.attr('data-value'),
+              percent = Math.ceil((value / max_value) * 100);
+
+          // Set Width & Add Class
+          bar.width(percent + '%');
+          bar.addClass('in');
+        });
+      }
+
+
+      $(".tabs a[title='tab_mesures']").click()
+
+      $('a[data-toggle=\"tab\"]').on('shown.bs.tab', function (e) {
+        //On supprime tous les timers lorsqu'on change d'onglet
+        clearTimeout(Timer_UdpateMesures);
+        tab_pane = $(e.target).attr("href")
+        console.log('activated ' + tab_pane );
+        // tabRefresh = true;
+
+        window.dispatchEvent(new Event('resize'));
+        // IE10, Firefox, Chrome, etc.
+        if (history.pushState)
+          window.history.pushState(null, null, tab_pane);
+        else
+          window.location.hash = tab_pane;
+      });
+
+
+      // Changement du theme - Change current theme
+      // Adapté de - Adapted from : https://wdtz.org/bootswatch-theme-selector.html
+      var supports_storage = supports_html5_storage();
+      if (supports_storage) {
+        var theme = localStorage.theme;
+        console.log("Recharge le theme " + theme);
+        if (theme) {
+          // set_theme(get_themeUrl(theme));
+        }
+      }
+
+      // Nouveau theme sélectionne - New theme selected
+      jQuery(function($){
+        $('body').on('click', '.change-style-menu-item', function() {
+          var theme_name = $(this).attr('rel');
+          console.log("Change theme " + theme_name);
+          var theme_url = get_themeUrl(theme_name);
+          console.log("URL theme : " + theme_url);
+          set_theme(theme_url);
+        });
+      });
+
+      // Recupere l'adresse du theme - Get theme URL
+      function get_themeUrl(theme_name){
+        $('#labelTheme').html("Th&egrave;me : " + theme_name);
+        var url_theme = "";
+        if ( theme_name === "bootstrap" ) {
+          url_theme = "https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css";
+        } else {
+          url_theme = "https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/" + theme_name + "/bootstrap.min.css";
+        }
+        if (supports_storage) {
+          // Enregistre le theme sélectionné en local - save into the local database the selected theme
+          localStorage.theme = theme_name;
+        }
+        return url_theme;
+      }
+
+      // Applique le thème - Apply theme
+      function set_theme(theme_url) {
+        $('link[title="main"]').attr('href', theme_url);
+      }
+
+      // Stockage local disponible ? - local storage available ?
+      function supports_html5_storage(){
+        try {
+          return 'localStorage' in window && window['localStorage'] !== null;
+        } catch (e) {
+          return false;
+        }
+      }
+    </script>
+  </body>
+</html>
+
+<!-- TODO -->
+<!--
+* Stick to one theme
+* Be able to set the Tempurature probe names
+* Have everything surved under local storage #done
+* Select a proper output for sensor data #done
+* Battery output indication
+* Be able to set a warninig level -> push that to MQTT (min and max values)
+* -->
