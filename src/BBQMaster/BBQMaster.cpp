@@ -1,29 +1,23 @@
-
+#include <FS.h>
+#include <SPIFFS.h>
 #include <Adafruit_ADS1015.h>
 #include <DNSServer.h>
 #include <OneWire.h>
-// #include <WebServer.h>
-// #include <WiFiManager.h>
-//needed for library
+#include <WiFi.h>
+#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <ESPAsyncWiFiManager.h>         //https://github.com/tzapu/WiFiManager
-
+#include <ESPAsyncWiFiManager.h>
 #include <Wire.h>
 #include <ArduinoJson.h>
 #include <SimpleList.h>
-#include "DallasTemperature.h"
-
-// Remote firmware update
+#include <DallasTemperature.h>
 #include <ArduinoOTA.h>
-
-#include <FS.h>
 #include <NtpClientLib.h>
-#include <Time.h>
-#include <TimeLib.h>
-#include <WiFi.h>
-#include "SPIFFS.h"
+#include <PubSubClient.h>
 
-#define DEBUG
+// #define DEBUG_SERIAL
+// #define DEBUG_TELNET
+// #define DEBUG_EXTRA_OUTPUT
 
 #define I2C_SDA_PIN 23
 #define I2C_SCL_PIN 22
@@ -38,7 +32,28 @@
 #define HIST_SIZE 20
 #define HIST_INT 5000
 #define SENSOR_READ_INT 1500
-#define NTP_RETRY_INT 5000
+#define MQTT_PUBLISH_PERIOD 10000
+
+// Macros for debugging
+#ifdef DEBUG_TELNET
+   #define     DEBUG_TELNET_PORT 23
+   WiFiServer  telnetServer(DEBUG_TELNET_PORT);
+   WiFiClient  telnetClient;
+   #define     DEBUG_PRINT(x)    telnetClient.print(x)
+   #define     DEBUG_PRINT_WITH_FMT(x, fmt)    telnetClient.printf(x, fmt)
+   #define     DEBUG_PRINTLN(x)  telnetClient.println(x)
+   #define     DEBUG_PRINTLN_WITH_FMT(x, fmt)  telnetClient.println(x, fmt)
+#elif defined(DEBUG_SERIAL)
+   #define     DEBUG_PRINT(x)    Serial.print(x)
+   #define     DEBUG_PRINT_WITH_FMT(x, fmt)    Serial.printf(x, fmt)
+   #define     DEBUG_PRINTLN(x)  Serial.println(x)
+   #define     DEBUG_PRINTLN_WITH_FMT(x, fmt)  Serial.println(x, fmt)
+#else
+   #define     DEBUG_PRINT(x)
+   #define     DEBUG_PRINT_WITH_FMT(x, fmt)
+   #define     DEBUG_PRINTLN(x)
+   #define     DEBUG_PRINTLN_WITH_FMT(x, fmt)
+#endif
 
 Adafruit_ADS1115 g_ads (0x49); /* Use this for the 16-bit version */
 AsyncWebServer g_server (80);
@@ -52,13 +67,24 @@ DeviceAddress g_sensor2 = {0x3B, 0xF1, 0x22, 0x18, 0x00, 0x00, 0x00, 0xB8};
 DeviceAddress g_sensor3 = {0x3B, 0xF3, 0x22, 0x18, 0x00, 0x00, 0x00, 0xD6};
 DeviceAddress g_sensor4 = {0x3B, 0x43, 0x21, 0x18, 0x00, 0x00, 0x00, 0x9F};
 
-unsigned long g_currentMillis = 0;
-unsigned long g_prevMilForInputRead = 0;
-unsigned long g_histPreviousMillis = 0;
-unsigned long g_prevMilForNTPRetry = 0;
 double g_batteryVoltage = 0;
 bool g_ntpError = false;
 short g_maxWorkingSensors = 0;
+
+// Host name of the device.
+const char* g_hostName= "BBQ_Master";
+
+// MQTT stuff
+WiFiClient espClient;
+PubSubClient g_mqttClient(espClient);
+
+// MQTT configs
+char g_mqtt_server[40] = "example.com";
+char g_mqtt_port[6] = "1883";
+char g_topicMQTTHeader[22 + 11];
+char g_topicAvailability[22 + 11 + 10];
+char g_topicState[22 + 11 + 10];
+char g_topicMQTTDiscover[22 + 11 + 10];
 
 // Representation of one temperature probe
 struct Sensor
@@ -88,49 +114,129 @@ SimpleList<DataPoint> g_tempHist;
 // Flag for saving data from wifi portal
 bool g_shouldSaveConfig = false;
 
+// Handle telnet debuging
+#if defined(DEBUG_TELNET)
+void handleTelnet(void) {
+  if (telnetServer.hasClient()) {
+    if (!telnetClient || !telnetClient.connected()) {
+      if (telnetClient) {
+        telnetClient.stop();
+      }
+      telnetClient = telnetServer.available();
+    } else {
+      telnetServer.available().stop();
+    }
+  }
+}
+#endif
+
 // Setup OTA
-void setupOTA(char *hostname)
+void setupOTA(const char *hostname)
 {
   // Config OTA updates
-  ArduinoOTA.onStart([]() { Serial.println("Start"); });
-  ArduinoOTA.onEnd([]() { Serial.println("\nEnd"); });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) { Serial.printf("Progress: %u%%\r", (progress / (total / 100))); });
+  ArduinoOTA.onStart([]() { DEBUG_PRINTLN("Start"); });
+  ArduinoOTA.onEnd([]() { DEBUG_PRINTLN("\nEnd"); });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) { DEBUG_PRINT_WITH_FMT("Progress: %u%%\r", (progress / (total / 100))); });
   ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Error[%u]: ", error);
-    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
-    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
-    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
-    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
-    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    DEBUG_PRINT_WITH_FMT("Error[%u]: ", error);
+    if (error == OTA_AUTH_ERROR) DEBUG_PRINTLN("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) DEBUG_PRINTLN("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) DEBUG_PRINTLN("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) DEBUG_PRINTLN("Receive Failed");
+    else if (error == OTA_END_ERROR) DEBUG_PRINTLN("End Failed");
   });
   ArduinoOTA.setHostname(hostname);
   ArduinoOTA.begin();  
 }
 
+// Saving the config to SPIFF
+void SaveConfig () {
+  DynamicJsonDocument json (256);
+  json["mqtt_server"] = g_mqtt_server;
+  json["mqtt_port"] = g_mqtt_port;
+
+  File configFile = SPIFFS.open("/config.json", "w");
+  if (!configFile) {
+    DEBUG_PRINTLN("failed to open config file for writing");
+  }
+  serializeJson(json, configFile);
+  configFile.close();
+}
+
+// Reading the config from SPIFF
+void ReadConfig ()
+{
+  if (SPIFFS.begin()) {
+      DEBUG_PRINTLN("SPIFFS started");
+      if (SPIFFS.exists("/config.json")) {
+         //file exists, reading and loading
+         DEBUG_PRINTLN("reading config file");
+         File configFile = SPIFFS.open("/config.json", "r");
+         if (configFile) {
+            DEBUG_PRINTLN("opened config file");
+            size_t size = configFile.size();
+            // Allocate a buffer to store contents of the file.
+            std::unique_ptr<char[]> buf(new char[size]);
+
+            configFile.readBytes(buf.get(), size);
+            DynamicJsonDocument json (size+1);
+            DeserializationError error = deserializeJson(json, buf.get());
+            if (!error) {
+               DEBUG_PRINT("parsed json config: ");
+               serializeJson(json, Serial);
+               DEBUG_PRINTLN();
+               strcpy(g_mqtt_server, json["mqtt_server"]);
+               strcpy(g_mqtt_port, json["mqtt_port"]);
+
+            } else {
+               DEBUG_PRINTLN("failed to load json config");
+               SaveConfig ();
+            }
+         }
+      }
+      else
+      {
+         SaveConfig ();
+      }
+  } else {
+      DEBUG_PRINTLN("Formatting the flash...");
+      SPIFFS.format();
+      DEBUG_PRINTLN("SPIFFS Mount failed");
+  }
+}
+
 // Call back for saving the config.
 void SaveConfigCallback () {
-  Serial.println("Should save config");
+  DEBUG_PRINTLN("Should save config");
   g_shouldSaveConfig = true;
 }
 
 // Manages wifi portal
 void ManageWifi (bool reset_config = false)
 {
-//   WiFiManager wifiManager;
+  // The extra parameters to be configured (can be either global or just in the setup)
+  AsyncWiFiManagerParameter custom_mqtt_server("server", "MQTT server", g_mqtt_server, 39);
+  AsyncWiFiManagerParameter custom_mqtt_port("port", "MQTT port", g_mqtt_port, 5);
+
   AsyncWiFiManager wifiManager(&g_server, &dns);
   wifiManager.setConnectTimeout(60);
   wifiManager.setConfigPortalTimeout(60);
   wifiManager.setMinimumSignalQuality(10);
+  wifiManager.addParameter(&custom_mqtt_server);
+  wifiManager.addParameter(&custom_mqtt_port);
   wifiManager.setSaveConfigCallback(&SaveConfigCallback);
   
   if (reset_config)
-    wifiManager.startConfigPortal("BBQ_Master");
+    wifiManager.startConfigPortal(g_hostName);
   else
-    wifiManager.autoConnect("BBQ_Master"); // This will hold the connection till it get a connection
+    wifiManager.autoConnect(g_hostName); // This will hold the connection till it get a connection
 
   if (g_shouldSaveConfig)
   {
-    g_shouldSaveConfig = false;
+      strncpy(g_mqtt_server, custom_mqtt_server.getValue(), 39);
+      strncpy(g_mqtt_port, custom_mqtt_port.getValue(), 5);
+      SaveConfig ();
+      g_shouldSaveConfig = false;
   }
 }
 
@@ -212,56 +318,35 @@ void ReadSensors ()
    g_thermoCouples.requestTemperatures();
    g_thermoCouples.setWaitForConversion(true);
 
-#ifdef DEBUG
-   Serial.print ("AIN0: ");
-   Serial.println (adc0);
-   // Serial.print (" v: ");
-   // Serial.println ((adc0 * 0.125) / 1000);
-   // Serial.print ("AIN1: ");
-   // Serial.print (adc1);
-   // Serial.print (" v: ");
-   // Serial.println ((adc1 * 0.125) / 1000);
+#ifdef DEBUG_EXTRA_OUTPUT
+   DEBUG_PRINT("AIN0: ");
+   DEBUG_PRINTLN(adc0);
 
-  Serial.print ("Temp NTC 0 F: ");
-  Serial.println (g_lastSenUpdate.m_sensors[0].m_tempF);
-  Serial.print ("Temp NTC 1 F: ");
-  Serial.println (g_lastSenUpdate.m_sensors[1].m_tempF);
-  Serial.print ("Temp NTC 2 F: ");
-  Serial.println (g_lastSenUpdate.m_sensors[2].m_tempF);
-  Serial.print ("Temp NTC 3 F: ");
-  Serial.println (g_lastSenUpdate.m_sensors[3].m_tempF);
+   DEBUG_PRINT("Temp NTC 0 F: ");
+   DEBUG_PRINTLN(g_lastSenUpdate.m_sensors[0].m_tempF);
+   DEBUG_PRINT("Temp NTC 1 F: ");
+   DEBUG_PRINTLN(g_lastSenUpdate.m_sensors[1].m_tempF);
+   DEBUG_PRINT("Temp NTC 2 F: ");
+   DEBUG_PRINTLN(g_lastSenUpdate.m_sensors[2].m_tempF);
+   DEBUG_PRINT("Temp NTC 3 F: ");
+   DEBUG_PRINTLN(g_lastSenUpdate.m_sensors[3].m_tempF);
 
-   // Serial.print ("AIN2: ");
-   // Serial.print (adc2);
-   // Serial.print (" v: ");
-   // Serial.println ((adc2 * 0.125) / 1000);
-   // Serial.print ("AIN3: ");
-   // Serial.print (adc3);
-   // Serial.print (" v: ");
-   // Serial.println ((adc3 * 0.125) / 1000);
-   // Serial.println (" ");
+   DEBUG_PRINT("Temp 0 F: ");
+   DEBUG_PRINTLN(tcp0);
+   DEBUG_PRINT("Temp 1 F: ");
+   DEBUG_PRINTLN(tcp1);
+   DEBUG_PRINT("Temp 2 F: ");
+   DEBUG_PRINTLN(tcp2);
+   DEBUG_PRINT("Temp 3 F: ");
+   DEBUG_PRINTLN(tcp3);
 
-   Serial.print ("Temp 0 F: ");
-   Serial.println (tcp0);
-   Serial.print ("Temp 1 F: ");
-   Serial.println (tcp1);
-   Serial.print ("Temp 2 F: ");
-   Serial.println (tcp2);
-   Serial.print ("Temp 3 F: ");
-   Serial.println (tcp3);
-
-   // Serial.print ("battery voltage: ");
-   // Serial.print (g_batteryVoltage);
-   // Serial.println ("v");
 #endif
 }
 
 // Send the last sensor data reading in json format.
-void SendMeasures (AsyncWebServerRequest *request)
+DynamicJsonDocument jsonSensorData ()
 {
-   Serial.println ("Sending measurements!");
    DynamicJsonDocument json(1024);  // Current JSON static buffer
-   // JsonObject& root = jsonBuffer.createObject ();
    json["bat"] = g_batteryVoltage;
    json["t"] = g_lastSenUpdate.m_time;
    JsonArray sensors = json.createNestedArray ("sensors");
@@ -274,8 +359,15 @@ void SendMeasures (AsyncWebServerRequest *request)
       tempS["n"] = g_lastSenUpdate.m_sensors[i].m_name;
    }
 
-   char tempJson[2400];
-   serializeJson(json, tempJson); // Export JSON object as a String
+   return json;
+}
+
+
+// Send the last sensor data reading in json format.
+void SendMeasures (AsyncWebServerRequest *request)
+{
+   char tempJson[1024];
+   serializeJson(jsonSensorData (), tempJson);
    request->send (200, "application/json", tempJson);  // Send history data to the web client
 }
 
@@ -283,7 +375,7 @@ void SendMeasures (AsyncWebServerRequest *request)
 // Send the history in JSON format.
 void SendHistory (AsyncWebServerRequest *request)
 {
-   Serial.println ("Sending History");
+   DEBUG_PRINTLN("Sending History");
    DynamicJsonDocument json(5560 + 100);  // Current JSON static buffer
    JsonArray hist = json.createNestedArray ("hist");
 
@@ -337,15 +429,123 @@ void AddDataPointToHistory ()
    }
   }
 
-#ifdef DEBUG
-   Serial.print ("size g_tempHist ");
-   Serial.println (g_tempHist.size ());
+#ifdef DEBUG_EXTRA_OUTPUT
+   DEBUG_PRINT ("size g_tempHist ");
+   DEBUG_PRINTLN(g_tempHist.size ());
 #endif
+}
+
+void publishToMQTT(const char* p_topic,const char* p_payload) {
+  if (g_mqttClient.publish(p_topic, p_payload, true)) {
+    DEBUG_PRINT(F("INFO: MQTT message published successfully, topic: "));
+    DEBUG_PRINT(p_topic);
+    DEBUG_PRINT(F(", payload: "));
+    DEBUG_PRINTLN(p_payload);
+  } else {
+    DEBUG_PRINTLN(F("ERROR: MQTT message not published, either connection lost, or message too large. Topic: "));
+    DEBUG_PRINT(p_topic);
+    DEBUG_PRINT(F(" , payload: "));
+    DEBUG_PRINTLN(p_payload);
+  }
+}
+
+// Function that publishes birthMessage
+void publishAvailability() 
+{
+   g_mqttClient.publish(g_topicAvailability, "online", true);
+}
+
+// Function that publishes availability of each sensor
+void publishSensorAvailability() 
+{
+   for (int i = 0; i < 8; i++)
+   {
+      char availabilitySensorTopic[22 + 11 + 20];
+      snprintf(availabilitySensorTopic, 22 + 11 + 20, "%s/%s/avail", g_topicMQTTHeader, g_lastSenUpdate.m_sensors[i].m_name.c_str());
+      if (g_lastSenUpdate.m_sensors[i].m_ind)
+         publishToMQTT(availabilitySensorTopic, "online");
+      else
+         publishToMQTT(availabilitySensorTopic, "offline");
+   }
+}
+
+// publish MQTT discovery config to let hassio auto discover the sensors.
+void publishDiscovery(void) 
+{
+   // Create json config for battery level.
+   StaticJsonDocument<220> root;
+   root["dev_cla"] = "battery";
+   char batName[30];
+   snprintf(batName, 30, "%s Battery.", g_hostName);
+   root["name"] = batName;
+   root["avty_t"] = g_topicAvailability;
+   root["stat_t"] = g_topicState;
+   root["unit_of_meas"] = "V";
+   root["val_tpl"] = "{{value_json.bat}}";
+   char outgoingJsonBuffer[220];
+   serializeJson(root, outgoingJsonBuffer);
+   publishToMQTT(g_topicMQTTDiscover, outgoingJsonBuffer);
+
+   // Create json config for each sensor.
+   for (int i = 0; i < 8; i++)
+   {
+      char sensorTopicHeader[22 + 11 + 20];
+      snprintf(sensorTopicHeader, 22 + 11 + 20, "%s/%s/config", g_topicMQTTHeader, g_lastSenUpdate.m_sensors[i].m_name.c_str());
+
+      StaticJsonDocument<250> sensorRoot;
+      sensorRoot["dev_cla"] = "temperature";
+      char sensorName[30];
+      snprintf(sensorName, 30, "%s %s Temperature.", g_hostName, g_lastSenUpdate.m_sensors[i].m_name.c_str());
+      sensorRoot["name"] = sensorName;
+      char availabilitySensorTopic[50];
+      snprintf(availabilitySensorTopic, 22 + 11 + 20, "%s/%s/avail", g_topicMQTTHeader, g_lastSenUpdate.m_sensors[i].m_name.c_str());
+      sensorRoot["avty_t"] = availabilitySensorTopic;
+      sensorRoot["stat_t"] = g_topicState;
+      sensorRoot["unit_of_meas"] = "°F";
+      String jsonTemplate = "{{value_json.sensors[" + String(i) + "].v}}";
+      sensorRoot["val_tpl"] = jsonTemplate;
+      sensorRoot["exp_aft"] = MQTT_PUBLISH_PERIOD/1000 + 5;
+
+      char sensorDisBuffer[250];
+      serializeJson(sensorRoot, sensorDisBuffer);
+      publishToMQTT(sensorTopicHeader, sensorDisBuffer);
+   }
+}
+
+// MQTT Connect.
+void connectToMqtt() 
+{
+  DEBUG_PRINT("Connecting to MQTT with client id ");
+  String clientId = "BBQMaster_";
+  clientId += String(random(0xffff), HEX);
+  DEBUG_PRINT(clientId);
+  DEBUG_PRINTLN("...");
+  // Attempt to connect
+  if (g_mqttClient.connect(clientId.c_str(), "", "", g_topicAvailability, 0, true, "offline"))
+  {
+      publishAvailability();
+      publishDiscovery();
+  }
+  else
+  {
+      DEBUG_PRINT("Failed to connect to MQTT! ");
+      DEBUG_PRINT(g_mqttClient.state());
+      DEBUG_PRINTLN(" Trying again in 5 seconds");
+  }
+}
+
+// Publish MQTT states
+void publishMqtt()
+{
+   char tempJson[1024];
+   serializeJson(jsonSensorData (), tempJson);
+   publishToMQTT (g_topicState, tempJson);
+   publishSensorAvailability();
 }
 
 void setup (void)
 {
-   Serial.begin (115200);
+   Serial.begin(115200);
 
    // For battery voltage readings
    analogReadResolution (12);
@@ -358,16 +558,28 @@ void setup (void)
    g_thermoCouples.requestTemperatures ();
    g_thermoCouples.setResolution (12);
 
+   // Read mqtt config from SPIFF
+   ReadConfig ();
+
    // WIFI connect
+   WiFi.config(INADDR_NONE, INADDR_NONE, INADDR_NONE);
+   WiFi.setHostname(g_hostName);
+   WiFi.mode(WIFI_STA);
    ManageWifi ();
 
+#if defined(DEBUG_TELNET)
+   telnetServer.begin();
+   telnetServer.setNoDelay(true);
+#endif
+   DEBUG_PRINT("Starting ");
+   DEBUG_PRINTLN(g_hostName);
+
    // OTA stuff
-   setupOTA ("BBQ_Master");
-   WiFi.setHostname("BBQ_Master");
+   setupOTA (g_hostName);
 
    // Web server stuff
    if (!SPIFFS.begin ())
-      Serial.println ("SPIFFS Mount failed");  // Problème avec le stockage SPIFFS - Serious problem with SPIFFS
+      DEBUG_PRINTLN("SPIFFS Mount failed");  // Problème avec le stockage SPIFFS - Serious problem with SPIFFS
    g_server.on ("/measures.json", SendMeasures);
    g_server.on ("/history.json", SendHistory);
 
@@ -381,61 +593,86 @@ void setup (void)
    g_server.serveStatic ("/css/bootstrap.min.css", SPIFFS, "/css/bootstrap.min.css", "max-age=86400");
    g_server.serveStatic ("/img/logo.png", SPIFFS, "/img/android-icon-72x72.png", "max-age=86400");
    g_server.serveStatic ("/favicon.ico", SPIFFS, "/img/favicon.ico", "max-age=86400");
-   g_server.serveStatic ("/", SPIFFS, "/index.html");
+   g_server.serveStatic ("/index.html", SPIFFS, "/index.html");
+   g_server.serveStatic ("/", SPIFFS, "/").setDefaultFile("index.html");
    g_server.begin ();
-   Serial.println ("HTTP server started");
+   DEBUG_PRINTLN("HTTP server started");
 
    // Real time
    NTP.onNTPSyncEvent ([](NTPSyncEvent_t error) {
       if (error)
       {
-         Serial.print ("Time Sync error: ");
          if (error == noResponse)
-            Serial.println ("NTP server not reachable");
+            DEBUG_PRINTLN("NTP server not reachable");
          else if (error == invalidAddress)
-            Serial.println ("Invalid NTP server address");
+            DEBUG_PRINTLN("Invalid NTP server address");
          g_ntpError = true;
       }
       else
       {
-         Serial.print ("Got NTP time: ");
-         Serial.println (NTP.getTimeDateString (NTP.getLastNTPSync ()));
+         DEBUG_PRINT("Got NTP time: ");
+         DEBUG_PRINTLN(NTP.getTimeDateString (NTP.getLastNTPSync ()));
       }
    });
    // NTP Server, time offset, daylight
    NTP.begin ("pool.ntp.org", -1, true);
-   NTP.setInterval (60);
+   NTP.setInterval (240);
+
+   // MQTT Config
+   snprintf(g_topicMQTTHeader, 22 + 11, "homeassistant/sensor/%s", g_hostName);
+   snprintf(g_topicAvailability, 22 + 11 + 10, "%s/avail",g_topicMQTTHeader);
+   snprintf(g_topicState, 22 + 11 + 10, "%s/state", g_topicMQTTHeader);
+   snprintf(g_topicMQTTDiscover, 22 + 11 + 10, "%s/config", g_topicMQTTHeader);
+   g_mqttClient.setServer(g_mqtt_server, atoi(g_mqtt_port));
+   g_mqttClient.setBufferSize(512);
+   randomSeed(micros());
 }
 
 void loop (void)
 {
-   g_currentMillis = millis ();  // Time now
+// handle the Telnet connection
+#if defined(DEBUG_TELNET)
+  handleTelnet();
+#endif
+
+   unsigned long currentMillis = millis ();  // Time now
    // Handle server requests
    ArduinoOTA.handle ();
 
-   // Add a point to the history over time.
-   if (g_currentMillis - g_histPreviousMillis > HIST_INT)
+   // Connect to MQTT server
+   if (!g_mqttClient.connected())
    {
-      g_histPreviousMillis = g_currentMillis;
+      static unsigned long mqttConnectWaitPeriod;
+      if (currentMillis - mqttConnectWaitPeriod >= 5000)
+      {
+         mqttConnectWaitPeriod = currentMillis;
+         connectToMqtt ();
+      }
+   }   
+   g_mqttClient.loop();
+
+   // Add a point to the history over time.
+   static unsigned long histPreviousMillis;
+   if (currentMillis - histPreviousMillis > HIST_INT)
+   {
+      histPreviousMillis = currentMillis;
       AddDataPointToHistory ();
    }
 
-   // If there is an error grabbing NTP time, try again.
-   if (g_ntpError)
+   // Read the sensor data.
+   static unsigned long prevMilForInputRead;
+   if (currentMillis - prevMilForInputRead >= SENSOR_READ_INT)
    {
-      if (g_currentMillis - g_histPreviousMillis > NTP_RETRY_INT)
-      {
-         g_prevMilForNTPRetry = g_currentMillis;
-         g_ntpError = false;
-         NTP.getTime ();
-      }
+      prevMilForInputRead = currentMillis;
+      ReadSensors ();
    }
 
-   // Read the sensor data.
-   if (g_currentMillis - g_prevMilForInputRead >= SENSOR_READ_INT)
+   // Send MQTT state.
+   static unsigned long prevMilForMqttPublish;
+   if (currentMillis - prevMilForMqttPublish >= MQTT_PUBLISH_PERIOD)
    {
-      g_prevMilForInputRead = g_currentMillis;
-      ReadSensors ();
+      prevMilForMqttPublish = currentMillis;
+      publishMqtt ();
    }
 }
 
