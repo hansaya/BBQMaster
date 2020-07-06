@@ -6,7 +6,6 @@
     <link rel="stylesheet" href="/css/custom.css">
     <link href="/css/bootstrap.min.css" rel="stylesheet" title="main">
     <link rel="stylesheet" href="/css/cover.css">
-    <!-- <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/superhero/bootstrap.min.css" rel="stylesheet" title="main"> -->
     <!-- <script src="//cdn.rawgit.com/Mikhus/canvas-gauges/gh-pages/download/2.1.5/all/gauge.min.js"></script> -->
     <title>BBQ Master</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -48,23 +47,23 @@
               <div class="row bg-dark rounded p-3 p-md-5 m-md-3 text-center">
                 <ul class="nav nav-pills">
                   <li><a href="#">
-                      <div class="span badge pull-right" id="batvoltage">-</div>Battery Voltage</a></li>
+                    Battery Level<div class="span badge pull-right" id="batvoltage">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor0">-</div>Sen 1</a></li>
+                    Sen 1<div class="span badge pull-right" id="sensor0">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor1">-</div>Sen 2</a></li>
+                    Sen 2<div class="span badge pull-right" id="sensor1">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor2">-</div>Sen 3</a></li>
+                    Sen 3<div class="span badge pull-right" id="sensor2">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor3">-</div>Sen 4</a></li>
+                    Sen 4<div class="span badge pull-right" id="sensor3">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor4">-</div>Sen 5</a></li>
+                    Sen 5<div class="span badge pull-right" id="sensor4">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor5">-</div>Sen 6</a></li>
+                    Sen 6<div class="span badge pull-right" id="sensor5">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor6">-</div>Sen 7</a></li>
+                    Sen 7<div class="span badge pull-right" id="sensor6">-</div></a></li>
                   <li><a href="#">
-                      <div class="span badge pull-right" id="sensor7">-</div>Sen 8</a></li>
+                    Sen 8<div class="span badge pull-right" id="sensor7">-</div></a></li>
                 </ul>
               </div>
 
@@ -327,7 +326,7 @@
                 // Hide the bar element if value is invalid
                 document.getElementById('sensorBar' + i).style.display = "none";
               }
-              $('#batvoltage').html("<b>" + data.bat + "v </b>");
+              $('#batvoltage').html("<b>" + data.bat + "% </b>");
 
               // TempValues.push(data.sensors[i].v);
               document.getElementById('sensorBar' + i).getElementsByClassName('label')[0].innerText = data.sensors[i].n;
@@ -445,9 +444,6 @@
 <!-- TODO -->
 <!--
 * Stick to one theme
-* Be able to set the Tempurature probe names
-* Have everything surved under local storage #done
-* Select a proper output for sensor data #done
+* Be able to set the Temperature probe names
 * Battery output indication
-* Be able to set a warninig level -> push that to MQTT (min and max values)
 * -->
